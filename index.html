@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Deriv Analyzer">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Deriv Dynamic Digit Analyzer v4</title>
+<title>Deriv Dynamic Digit Analyzer v5</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#182235;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.app{max-width:1360px;margin:auto;padding:12px}
 .top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px}h1,h2,h3{margin:0}.sub,.muted,.small{color:#697386;font-size:11px}
@@ -24,200 +24,35 @@ pre{white-space:pre-wrap;word-break:break-word;background:#f7f8fa;border-radius:
 </style>
 </head>
 <body><div class="app">
-<div class="top"><div><h1>Deriv Dynamic Digit Analyzer v4</h1><div class="sub">Adaptive signal engine • payout-aware EV • walk-forward validation • paper trading</div></div><span class="badge" id="tickCount">0 ticks</span></div>
-
+<div class="top"><div><h1>Deriv Dynamic Digit Analyzer v5</h1><div class="sub">Adaptive signal engine • payout-aware EV • walk-forward validation • paper trading</div></div><span class="badge" id="tickCount">0 ticks</span></div>
 <section class="card">
 <div class="controls">
-<div class="field"><label>MARKET</label><select id="symbol">
-<option value="R_10">Volatility 10</option><option value="R_25">Volatility 25</option><option value="R_50">Volatility 50</option><option value="R_75">Volatility 75</option><option value="R_100">Volatility 100</option><option value="1HZ10V">Volatility 10 (1s)</option><option value="1HZ25V">Volatility 25 (1s)</option><option value="1HZ50V">Volatility 50 (1s)</option><option value="1HZ75V">Volatility 75 (1s)</option><option value="1HZ100V">Volatility 100 (1s)</option>
-</select></div>
+<div class="field"><label>MARKET</label><select id="symbol"><option value="R_10">Volatility 10</option><option value="R_25">Volatility 25</option><option value="R_50">Volatility 50</option><option value="R_75">Volatility 75</option><option value="R_100">Volatility 100</option><option value="1HZ10V">Volatility 10 (1s)</option><option value="1HZ25V">Volatility 25 (1s)</option><option value="1HZ50V">Volatility 50 (1s)</option><option value="1HZ75V">Volatility 75 (1s)</option><option value="1HZ100V">Volatility 100 (1s)</option></select></div>
 <div class="field"><label>WINDOW</label><select id="window"><option>50</option><option selected>100</option><option>250</option><option>500</option><option>1000</option></select></div>
 <div class="field"><label>SIGNAL GATE</label><select id="threshold"><option value=".60">60%</option><option value=".65">65%</option><option selected value=".70">70%</option><option value=".75">75%</option><option value=".80">80%</option></select></div>
 <div class="field"><label>REFRESH</label><select id="refresh"><option value="1">1 tick</option><option value="5">5 ticks</option><option selected value="10">10 ticks</option><option value="25">25 ticks</option></select></div>
 <div class="field"><label>PAYOUT %</label><input id="payout" type="number" min="0" max="1000" step="0.1" value="95"></div>
 <button class="primary" id="connect">Connect</button><button id="reset">Clean / Reset</button>
+</div><div class="status"><span class="dot" id="dot"></span><span id="status">Disconnected</span></div>
+</section>
+<section class="cards"><div class="card"><div class="muted">BEST DIFFERS</div><div class="signal" id="diff">—</div><div class="score" id="diffS">—</div></div><div class="card"><div class="muted">BEST MATCHES</div><div class="signal" id="match">—</div><div class="score" id="matchS">—</div></div><div class="card"><div class="muted">EVEN / ODD</div><div class="signal" id="eo">—</div><div class="score" id="eoS">—</div></div><div class="card"><div class="muted">OVER / UNDER</div><div class="signal" id="ou">—</div><div class="score" id="ouS">—</div></div><div class="card"><div class="muted">ENGINE DECISION</div><div class="signal" id="decision">WAIT</div><div class="score" id="decisionS">Waiting for enough evidence</div></div></section>
+<div class="grid"><section class="card"><h3>Adaptive digit distribution</h3><div id="digits" style="margin-top:8px">Collecting ticks…</div></section><section class="card"><h3>Engine diagnostics</h3><table><tbody id="diag"></tbody></table></section></div>
+<section class="card" style="margin-top:9px"><h3>Walk-forward validation</h3><div class="small" style="margin:5px 0 8px">Each test prediction is generated only from earlier observations. The result is an observed historical hit rate, not a forecast guarantee.</div><div class="controls" style="grid-template-columns:1fr 1fr auto"><div class="field"><label>TRAIN WINDOW</label><select id="train"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></div><div class="field"><label>BACKTEST GATE</label><select id="btgate"><option value=".60">60%</option><option value=".65" selected>65%</option><option value=".70">70%</option><option value=".75">75%</option></select></div><button id="backtest">Run Backtest</button></div><div id="bt" style="margin-top:8px" class="small">Need more collected ticks to test.</div></section>
+<section class="card" style="margin-top:9px"><h3>Paper trading</h3><div class="small" style="margin:5px 0 8px">Simulates one-unit stakes only. It never places a Deriv order. A paper trade is opened only when the engine has a signal above the gate and positive model EV.</div><div class="actions"><button class="primary" id="paperOn">Start Paper Mode</button><button id="paperOff">Stop Paper Mode</button><button id="paperReset">Reset Paper Stats</button></div><div style="margin-top:8px"><table><tbody id="paperStats"></tbody></table></div></section>
+<section class="card" style="margin-top:9px"><h3>Signal history</h3><table><thead><tr><th>Time</th><th>Contract</th><th>Prediction</th><th>Score</th><th>EV/unit</th><th>Paper</th></tr></thead><tbody id="history"></tbody></table></section>
+<section class="card" style="margin-top:9px"><h3>Bot-ready JSON</h3><pre id="json">{}</pre><div class="notice"><b>Dynamic/reset rule:</b> every refresh recalculates from the current rolling sample. Clean / Reset clears ticks, history, paper stats and the prior signal state.</div><div class="notice"><b>Risk note:</b> no statistical model can guarantee profit. The payout field is an assumption and should match the actual contract payout before use.</div></section>
 </div>
-<div class="status"><span class="dot" id="dot"></span><span id="status">Disconnected</span></div>
-</section>
-
-<section class="cards">
-<div class="card"><div class="muted">BEST DIFFERS</div><div class="signal" id="diff">—</div><div class="score" id="diffS">—</div></div>
-<div class="card"><div class="muted">BEST MATCHES</div><div class="signal" id="match">—</div><div class="score" id="matchS">—</div></div>
-<div class="card"><div class="muted">EVEN / ODD</div><div class="signal" id="eo">—</div><div class="score" id="eoS">—</div></div>
-<div class="card"><div class="muted">OVER / UNDER</div><div class="signal" id="ou">—</div><div class="score" id="ouS">—</div></div>
-<div class="card"><div class="muted">ENGINE DECISION</div><div class="signal" id="decision">WAIT</div><div class="score" id="decisionS">Waiting for enough evidence</div></div>
-</section>
-
-<div class="grid">
-<section class="card"><h3>Adaptive digit distribution</h3><div id="digits" style="margin-top:8px">Collecting ticks…</div></section>
-<section class="card"><h3>Engine diagnostics</h3><table><tbody id="diag"></tbody></table></section>
-</div>
-
-<section class="card" style="margin-top:9px">
-<h3>Walk-forward validation</h3>
-<div class="small" style="margin:5px 0 8px">Each test prediction is generated only from earlier observations. The result is an observed historical hit rate, not a forecast guarantee.</div>
-<div class="controls" style="grid-template-columns:1fr 1fr auto">
-<div class="field"><label>TRAIN WINDOW</label><select id="train"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></div>
-<div class="field"><label>BACKTEST GATE</label><select id="btgate"><option value=".60">60%</option><option value=".65" selected>65%</option><option value=".70">70%</option><option value=".75">75%</option></select></div>
-<button id="backtest">Run Backtest</button>
-</div>
-<div id="bt" style="margin-top:8px" class="small">Need more collected ticks to test.</div>
-</section>
-
-<section class="card" style="margin-top:9px">
-<h3>Paper trading</h3>
-<div class="small" style="margin:5px 0 8px">Simulates one-unit stakes only. It never places a Deriv order. A paper trade is opened only when the engine has a signal above the gate and positive model EV.</div>
-<div class="actions"><button class="primary" id="paperOn">Start Paper Mode</button><button id="paperOff">Stop Paper Mode</button><button id="paperReset">Reset Paper Stats</button></div>
-<div style="margin-top:8px"><table><tbody id="paperStats"></tbody></table></div>
-</section>
-
-<section class="card" style="margin-top:9px">
-<h3>Signal history</h3>
-<table><thead><tr><th>Time</th><th>Contract</th><th>Prediction</th><th>Score</th><th>EV/unit</th><th>Paper</th></tr></thead><tbody id="history"></tbody></table>
-</section>
-
-<section class="card" style="margin-top:9px"><h3>Bot-ready JSON</h3><pre id="json">{}</pre>
-<div class="notice"><b>Dynamic/reset rule:</b> the previous prediction has no special priority. Every refresh recalculates the signal from the current rolling sample. Clean / Reset clears ticks, history, paper stats and the prior signal state. The payout input is an assumption for EV screening; it is not fetched from the broker and should match the actual contract payout before use.</div>
-<div class="notice"><b>Risk note:</b> no statistical model can guarantee profit on Deriv contracts. Do not use the signal score as a guaranteed win probability. Validate with current contract pricing/payouts and paper trading first.</div>
-</section>
-</div>
-
 <script>
-if ("serviceWorker" in navigator) { window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(()=>{})); }
-
-const $=id=>document.getElementById(id), APP_ID="1089";
-let ws=null,running=false,ticks=[],history=[],lastKey="",tickCounter=0,paper=false;
-let ps={stake:1,trades:0,wins:0,losses:0,profit:0,peak:0,maxDD:0,streak:0,maxLossStreak:0};
-
-function setStatus(s,on=false){$("status").textContent=s;$("dot").className="dot"+(on?" on":"")}
-function pct(x){return (x*100).toFixed(1)+"%"}
-function digit(q){let s=String(q),p=s.split(".");return Number((p[p.length-1]||"0").slice(-1))}
-function counts(a){let c=Array(10).fill(0);for(const d of a)c[d]++;return c}
-function payoutReturn(){return Math.max(0,+$("payout").value||0)/100}
-
-function model(a){
- if(a.length<20)return null;
- const n=a.length,c=counts(a),p=c.map(v=>v/n),recent=a.slice(-Math.min(30,n)),rc=counts(recent),rp=rc.map(v=>v/recent.length);
- const blend=p.map((v,i)=>.55*v+.45*rp[i]);
- const latest=a[n-1],trans=Array(10).fill(0);let tn=0;
- for(let i=1;i<n;i++)if(a[i-1]===latest){trans[a[i]]++;tn++}
- const tp=trans.map(v=>tn?v/tn:0), fp=blend.map((v,i)=>.75*v+.25*(tn>=5?tp[i]:v));
- const sorted=fp.map((p,d)=>({d,p})).sort((a,b)=>b.p-a.p);
- const match=sorted[0],diff=sorted.map(x=>({d:x.d,p:1-x.p})).sort((a,b)=>b.p-a.p)[0];
- const even=a.filter(d=>d%2===0).length/n,odd=1-even,eo=even>=odd?{contract:"EVEN",p:even}:{contract:"ODD",p:odd};
- let ou=[];for(let b=0;b<=8;b++){let over=a.filter(d=>d>b).length/n,under=1-over;ou.push(over>=under?{contract:"OVER",prediction:b,p:over}:{contract:"UNDER",prediction:b,p:under})}
- ou.sort((a,b)=>b.p-a.p);
- return {n,c,p,rp,fp,latest,tn,match,diff,even,odd,eo,ou:ou[0]};
-}
-function candidates(x){
- const pay=payoutReturn();
- return [
-  {contract:"DIGITDIFF",prediction:x.diff.d,p:x.diff.p},
-  {contract:"DIGITMATCH",prediction:x.match.d,p:x.match.p},
-  {contract:x.eo.contract,prediction:null,p:x.eo.p},
-  {contract:x.ou.contract,prediction:x.ou.prediction,p:x.ou.p}
- ].map(s=>({...s,ev:s.p*pay-(1-s.p)})).sort((a,b)=>b.ev-a.ev);
-}
-function best(x){return candidates(x)[0]}
-
-function outcome(s,next){
- if(s.contract==="DIGITMATCH")return next===s.prediction;
- if(s.contract==="DIGITDIFF")return next!==s.prediction;
- if(s.contract==="EVEN")return next%2===0;
- if(s.contract==="ODD")return next%2!==0;
- if(s.contract==="OVER")return next>s.prediction;
- if(s.contract==="UNDER")return next<s.prediction;
- return false;
-}
-function paperTrade(s,next){
- if(!paper)return;
- const gate=+$("threshold").value;
- if(s.p<gate || s.ev<=0)return;
- const win=outcome(s,next);ps.trades++;
- if(win){ps.wins++;ps.profit+=payoutReturn();ps.streak=0}
- else{ps.losses++;ps.profit-=1;ps.streak++;ps.maxLossStreak=Math.max(ps.maxLossStreak,ps.streak)}
- ps.peak=Math.max(ps.peak,ps.profit);ps.maxDD=Math.max(ps.maxDD,ps.peak-ps.profit);
- renderPaper();
-}
-function renderPaper(){
- const wr=ps.trades?ps.wins/ps.trades:0;
- $("paperStats").innerHTML=[
- ["Mode",paper?"RUNNING":"STOPPED"],["Trades",ps.trades],["Wins / Losses",ps.wins+" / "+ps.losses],
- ["Observed hit rate",pct(wr)],["Paper P/L",ps.profit.toFixed(2)+" units"],["Max losing streak",ps.maxLossStreak],
- ["Max drawdown",ps.maxDD.toFixed(2)+" units"]
- ].map(r=>`<tr><td>${r[0]}</td><td><b>${r[1]}</b></td></tr>`).join("");
-}
-
-function render(){
- $("tickCount").textContent=ticks.length+" ticks";
- const x=model(ticks.slice(-+$("window").value));
- if(!x){$("digits").textContent="Collecting ticks… minimum 20 ticks.";renderPaper();return}
- const gate=+$("threshold").value, arr=candidates(x),b=arr[0];
- $("digits").innerHTML=x.fp.map((v,d)=>`<div class="barrow"><b>${d}</b><div class="bar"><div class="fill" style="width:${pct(v)}"></div></div><span>${pct(v)}</span></div>`).join("");
- $("diff").textContent=x.diff.p>=gate?`Digit ${x.diff.d}`:"NO SIGNAL";$("diffS").textContent=`Score ${pct(x.diff.p)} • EV ${(x.diff.p*payoutReturn()-(1-x.diff.p)).toFixed(3)}`;
- $("match").textContent=x.match.p>=gate?`Digit ${x.match.d}`:"NO SIGNAL";$("matchS").textContent=`Score ${pct(x.match.p)} • EV ${(x.match.p*payoutReturn()-(1-x.match.p)).toFixed(3)}`;
- $("eo").textContent=x.eo.p>=gate?x.eo.contract:"NO SIGNAL";$("eoS").textContent=`Score ${pct(x.eo.p)}`;
- $("ou").textContent=x.ou.p>=gate?`${x.ou.contract} ${x.ou.prediction}`:"NO SIGNAL";$("ouS").textContent=`Score ${pct(x.ou.p)}`;
- const ready=b.p>=gate&&b.ev>0;
- $("decision").textContent=ready?`${b.contract}${b.prediction===null?"":" "+b.prediction}`:"WAIT";
- $("decisionS").textContent=ready?`Score ${pct(b.p)} • EV/unit ${b.ev.toFixed(3)}`:`Best score ${pct(b.p)} • EV ${b.ev.toFixed(3)}`;
-
- const key=ready?b.contract+"|"+b.prediction:"WAIT";
- if(ready&&key!==lastKey){history.unshift({time:new Date().toLocaleTimeString(),...b,paper:"—",sample:x.n});history=history.slice(0,30);lastKey=key}
- $("history").innerHTML=history.map(h=>`<tr><td>${h.time}</td><td>${h.contract}</td><td>${h.prediction===null?"—":h.prediction}</td><td>${pct(h.p)}</td><td>${h.ev.toFixed(3)}</td><td>${h.paper}</td></tr>`).join("");
- $("diag").innerHTML=[
- ["Latest digit",x.latest],["Transitions from latest",x.tn],["Window",x.n],
- ["Long max",pct(Math.max(...x.p))],["Recent max",pct(Math.max(...x.rp))],
- ["Best candidate",b.contract+" "+(b.prediction===null?"":b.prediction)],["Gate",pct(gate)],["Payout assumption",$("payout").value+"%"],
- ["Positive-EV signal",ready?"YES":"NO"]
- ].map(r=>`<tr><td>${r[0]}</td><td><b>${r[1]}</b></td></tr>`).join("");
-
- let out={symbol:$("symbol").value,signal:ready?"READY":"NONE",contract:ready?b.contract:null,prediction:ready?b.prediction:null,score:ready?Number(b.p.toFixed(4)):0,expected_value_per_unit:ready?Number(b.ev.toFixed(4)):0,sample:x.n,timestamp:Date.now()};
- $("json").textContent=JSON.stringify(out,null,2);renderPaper();
-}
-
-function reset(){
- ticks=[];history=[];lastKey="";tickCounter=0;
- ps={stake:1,trades:0,wins:0,losses:0,profit:0,peak:0,maxDD:0,streak:0,maxLossStreak:0};
- render();setStatus(running?"Connected — fresh sample collecting":"Disconnected",running);
-}
-function connect(){
- if(ws)ws.close();ticks=[];history=[];lastKey="";tickCounter=0;render();const symbol=$("symbol").value;
- setStatus("Connecting…");
- ws=new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`);
- ws.onopen=()=>{running=true;setStatus("Connected — collecting fresh ticks",true);ws.send(JSON.stringify({ticks:symbol,subscribe:1}))};
- ws.onmessage=e=>{try{let m=JSON.parse(e.data);if(m.tick&&m.tick.quote!=null){let d=digit(m.tick.quote);ticks.push(d);tickCounter++;
-   const max=+$("window").value*4;if(ticks.length>max)ticks=ticks.slice(-max);
-   if(tickCounter%+$("refresh").value===0)render();
- }}catch(err){console.error(err)}};
- ws.onerror=()=>setStatus("Connection error");ws.onclose=()=>{running=false;setStatus("Disconnected")};
-}
-
-function backtest(){
- const all=ticks.slice(),train=+$("train").value,gate=+$("btgate").value;
- if(all.length<train+30){$("bt").textContent=`Need at least ${train+30} ticks; currently ${all.length}.`;return}
- let tested=0,eligible=0,wins=0,profit=0,maxLoss=0,lossStreak=0,mix={};
- for(let i=train;i<all.length-1;i++){
-   const x=model(all.slice(i-train,i));if(!x)continue;tested++;const a=candidates(x),s=a[0];
-   if(s.p<gate||s.ev<=0)continue;eligible++;mix[s.contract]=(mix[s.contract]||0)+1;
-   const win=outcome(s,all[i]);if(win){wins++;profit+=payoutReturn();lossStreak=0}else{profit-=1;lossStreak++;maxLoss=Math.max(maxLoss,lossStreak)}
- }
- $("bt").innerHTML=`<table><tbody>
- <tr><td>Walk-forward observations</td><td><b>${tested}</b></td></tr>
- <tr><td>Eligible positive-EV signals</td><td><b>${eligible}</b></td></tr>
- <tr><td>Correct outcomes</td><td><b>${wins}</b></td></tr>
- <tr><td>Observed hit rate</td><td><b>${eligible?pct(wins/eligible):"—"}</b></td></tr>
- <tr><td>Simulated P/L / unit</td><td><b>${profit.toFixed(2)}</b></td></tr>
- <tr><td>Max losing streak</td><td><b>${maxLoss}</b></td></tr>
- <tr><td>Signal mix</td><td><b>${Object.entries(mix).map(([k,v])=>k+": "+v).join(" • ")||"None"}</b></td></tr>
- </tbody></table>`;
-}
-
-$("connect").onclick=connect;$("reset").onclick=reset;$("backtest").onclick=backtest;
-$("paperOn").onclick=()=>{paper=true;renderPaper()};$("paperOff").onclick=()=>{paper=false;renderPaper()};
-$("paperReset").onclick=()=>{ps={stake:1,trades:0,wins:0,losses:0,profit:0,peak:0,maxDD:0,streak:0,maxLossStreak:0};renderPaper()};
-$("symbol").onchange=()=>running&&connect();
-["window","threshold","refresh","payout","train","btgate"].forEach(id=>$(id).onchange=render);
-render();renderPaper();
-</script>
-</body></html>
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}
+const $=id=>document.getElementById(id);let ws=null,running=false,ticks=[],history=[],lastKey="",tickCounter=0,paper=false;let ps={stake:1,trades:0,wins:0,losses:0,profit:0,peak:0,maxDD:0,streak:0,maxLossStreak:0};
+function setStatus(s,on=false){$("status").textContent=s;$("dot").className="dot"+(on?" on":"")};function pct(x){return(x*100).toFixed(1)+"%"};function digit(q){let s=String(q),p=s.split(".");return Number((p[p.length-1]||"0").slice(-1))};function counts(a){let c=Array(10).fill(0);for(const d of a)c[d]++;return c};function payoutReturn(){return Math.max(0,+$("payout").value||0)/100}
+function model(a){if(a.length<20)return null;const n=a.length,c=counts(a),p=c.map(v=>v/n),recent=a.slice(-Math.min(30,n)),rc=counts(recent),rp=rc.map(v=>v/recent.length),blend=p.map((v,i)=>.55*v+.45*rp[i]),latest=a[n-1],trans=Array(10).fill(0);let tn=0;for(let i=1;i<n;i++)if(a[i-1]===latest){trans[a[i]]++;tn}const tp=trans.map(v=>tn?v/tn:0),fp=blend.map((v,i)=>.75*v+.25*(tn>=5?tp[i]:v)),sorted=fp.map((p,d)=>({d,p})).sort((a,b)=>b.p-a.p),match=sorted[0],diff=sorted.map(x=>({d:x.d,p:1-x.p})).sort((a,b)=>b.p-a.p)[0],even=a.filter(d=>d%2===0).length/n,odd=1-even,eo=even>=odd?{contract:"EVEN",p:even}:{contract:"ODD",p:odd};let ou=[];for(let b=0;b<=8;b++){let over=a.filter(d=>d>b).length/n,under=1-over;ou.push(over>=under?{contract:"OVER",prediction:b,p:over}:{contract:"UNDER",prediction:b,p:under})}ou.sort((a,b)=>b.p-a.p);return{n,c,p,rp,fp,latest,tn,match,diff,even,odd,eo,ou:ou[0]}}
+function candidates(x){const pay=payoutReturn();return[{contract:"DIGITDIFF",prediction:x.diff.d,p:x.diff.p},{contract:"DIGITMATCH",prediction:x.match.d,p:x.match.p},{contract:x.eo.contract,prediction:null,p:x.eo.p},{contract:x.ou.contract,prediction:x.ou.prediction,p:x.ou.p}].map(s=>({...s,ev:s.p*pay-(1-s.p)})).sort((a,b)=>b.ev-a.ev)}
+function outcome(s,next){if(s.contract==="DIGITMATCH")return next===s.prediction;if(s.contract==="DIGITDIFF")return next!==s.prediction;if(s.contract==="EVEN")return next%2===0;if(s.contract==="ODD")return next%2!==0;if(s.contract==="OVER")return next>s.prediction;if(s.contract==="UNDER")return next<s.prediction;return false}
+function renderPaper(){const wr=ps.trades?ps.wins/ps.trades:0;$("paperStats").innerHTML=[["Mode",paper?"RUNNING":"STOPPED"],["Trades",ps.trades],["Wins / Losses",ps.wins+" / "+ps.losses],["Observed hit rate",pct(wr)],["Paper P/L",ps.profit.toFixed(2)+" units"],["Max losing streak",ps.maxLossStreak],["Max drawdown",ps.maxDD.toFixed(2)+" units"]].map(r=>`<tr><td>${r[0]}</td><td><b>${r[1]}</b></td></tr>`).join("")}
+function render(){$("tickCount").textContent=ticks.length+" ticks";const x=model(ticks.slice(-+$("window").value));if(!x){$("digits").textContent="Collecting ticks… minimum 20 ticks.";renderPaper();return}const gate=+$("threshold").value,arr=candidates(x),b=arr[0];$("digits").innerHTML=x.fp.map((v,d)=>`<div class="barrow"><b>${d}</b><div class="bar"><div class="fill" style="width:${pct(v)}"></div></div><span>${pct(v)}</span></div>`).join("");$("diff").textContent=x.diff.p>=gate?`Digit ${x.diff.d}`:"NO SIGNAL";$("diffS").textContent=`Score ${pct(x.diff.p)} • EV ${(x.diff.p*payoutReturn()-(1-x.diff.p)).toFixed(3)}`;$("match").textContent=x.match.p>=gate?`Digit ${x.match.d}`:"NO SIGNAL";$("matchS").textContent=`Score ${pct(x.match.p)} • EV ${(x.match.p*payoutReturn()-(1-x.match.p)).toFixed(3)}`;$("eo").textContent=x.eo.p>=gate?x.eo.contract:"NO SIGNAL";$("eoS").textContent=`Score ${pct(x.eo.p)}`;$("ou").textContent=x.ou.p>=gate?`${x.ou.contract} ${x.ou.prediction}`:"NO SIGNAL";$("ouS").textContent=`Score ${pct(x.ou.p)}`;const ready=b.p>=gate&&b.ev>0;$("decision").textContent=ready?`${b.contract}${b.prediction===null?"":" "+b.prediction}`:"WAIT";$("decisionS").textContent=ready?`Score ${pct(b.p)} • EV/unit ${b.ev.toFixed(3)}`:`Best score ${pct(b.p)} • EV ${b.ev.toFixed(3)}`;const key=ready?b.contract+"|"+b.prediction:"WAIT";if(ready&&key!==lastKey){history.unshift({time:new Date().toLocaleTimeString(),...b});history=history.slice(0,30);lastKey=key}$("history").innerHTML=history.map(h=>`<tr><td>${h.time}</td><td>${h.contract}</td><td>${h.prediction===null?"—":h.prediction}</td><td>${pct(h.p)}</td><td>${h.ev.toFixed(3)}</td><td>—</td></tr>`).join("");$("diag").innerHTML=[["Latest digit",x.latest],["Transitions from latest",x.tn],["Window",x.n],["Long max",pct(Math.max(...x.p))],["Recent max",pct(Math.max(...x.rp))],["Best candidate",b.contract+" "+(b.prediction===null?"":b.prediction)],["Gate",pct(gate)],["Payout assumption",$("payout").value+"%"],["Positive-EV signal",ready?"YES":"NO"]].map(r=>`<tr><td>${r[0]}</td><td><b>${r[1]}</b></td></tr>`).join("");$("json").textContent=JSON.stringify({symbol:$("symbol").value,signal:ready?"READY":"NONE",contract:ready?b.contract:null,prediction:ready?b.prediction:null,score:ready?Number(b.p.toFixed(4)):0,expected_value_per_unit:ready?Number(b.ev.toFixed(4)):0,sample:x.n,timestamp:Date.now()},null,2);renderPaper()}
+function reset(){ticks=[];history=[];lastKey="";tickCounter=0;ps={stake:1,trades:0,wins:0,losses:0,profit:0,peak:0,maxDD:0,streak:0,maxLossStreak:0};render();setStatus(running?"Connected — fresh sample collecting":"Disconnected",running)}
+function connect(){if(ws)ws.close();ticks=[];history=[];lastKey="";tickCounter=0;render();const symbol=$("symbol").value;setStatus("Connecting to Deriv public market-data stream…");ws=new WebSocket("wss://api.derivws.com/trading/v1/options/ws/public");ws.onopen=()=>{running=true;setStatus("Connected — requesting live ticks…",true);ws.send(JSON.stringify({ticks:symbol,subscribe:1,req_id:1}))};ws.onmessage=e=>{try{let m=JSON.parse(e.data);if(m.error){setStatus("Deriv API error: "+(m.error.message||"request rejected"));return}if(m.tick&&m.tick.quote!=null){let d=digit(m.tick.quote);ticks.push(d);tickCounter++;const max=+$('window').value*4;if(ticks.length>max)ticks=ticks.slice(-max);if(tickCounter%+$('refresh').value===0)render()}}catch(err){console.error(err)}};ws.onerror=()=>{running=false;setStatus("WebSocket connection error — check internet/Deriv access")};ws.onclose=()=>{running=false;setStatus("Disconnected")}}
+function backtest(){const all=ticks.slice(),train=+$('train').value,gate=+$('btgate').value;if(all.length<train+30){$('bt').textContent=`Need at least ${train+30} ticks; currently ${all.length}.`;return}let tested=0,eligible=0,wins=0,profit=0,maxLoss=0,lossStreak=0,mix={};for(let i=train;i<all.length-1;i++){const x=model(all.slice(i-train,i));if(!x)continue;tested++;const a=candidates(x),s=a[0];if(s.p<gate||s.ev<=0)continue;eligible++;mix[s.contract]=(mix[s.contract]||0)+1;const win=outcome(s,all[i]);if(win){wins++;profit+=payoutReturn();lossStreak=0}else{profit-=1;lossStreak++;maxLoss=Math.max(maxLoss,lossStreak)}}$('bt').innerHTML=`<table><tbody><tr><td>Walk-forward observations</td><td><b>${tested}</b></td></tr><tr><td>Eligible positive-EV signals</td><td><b>${eligible}</b></td></tr><tr><td>Correct outcomes</td><td><b>${wins}</b></td></tr><tr><td>Observed hit rate</td><td><b>${eligible?pct(wins/eligible):"—"}</b></td></tr><tr><td>Simulated P/L / unit</td><td><b>${profit.toFixed(2)}</b></td></tr><tr><td>Max losing streak</td><td><b>${maxLoss}</b></td></tr><tr><td>Signal mix</td><td><b>${Object.entries(mix).map(([k,v])=>k+": "+v).join(" • ")||"None"}</b></td></tr></tbody></table>`}
+$("connect").onclick=connect;$("reset").onclick=reset;$("backtest").onclick=backtest;$("paperOn").onclick=()=>{paper=true;renderPaper()};$("paperOff").onclick=()=>{paper=false;renderPaper()};$("paperReset").onclick=()=>{ps={stake:1,trades:0,wins:0,losses:0,profit:0,peak:0,maxDD:0,streak:0,maxLossStreak:0};renderPaper()};$("symbol").onchange=()=>running&&connect();["window","threshold","refresh","payout","train","btgate"].forEach(id=>$(id).onchange=render);render();renderPaper();
+</script></body></html>
